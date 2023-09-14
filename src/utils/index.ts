@@ -1,4 +1,5 @@
-const customPick = <T extends object, K extends keyof T>({
+import crypto from "node:crypto";
+const pickKeysInObject = <T extends object, K extends keyof T>({
   object,
   keys,
 }: {
@@ -12,4 +13,6 @@ const customPick = <T extends object, K extends keyof T>({
     return result;
   }, {} as Pick<T, K>);
 
-export { customPick };
+const generateKey = () => crypto.randomBytes(64).toString("hex");
+
+export { pickKeysInObject, generateKey };

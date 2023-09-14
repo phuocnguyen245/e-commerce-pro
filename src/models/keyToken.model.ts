@@ -1,10 +1,5 @@
 import { Schema, Types, model } from "mongoose";
-interface IKeyToken {
-  userId: Types.ObjectId;
-  publicKey: string;
-  privateKey: string;
-  refreshToken: any;
-}
+import { IKeyToken } from "../types/models.ts";
 
 const NAME = {
   DOCUMENT: "KeyToken",
@@ -20,9 +15,13 @@ const KeyTokenSchema = new Schema<IKeyToken>(
     },
     publicKey: { type: String, required: true },
     privateKey: { type: String, required: true },
-    refreshToken: {
+    refreshTokenUsed: {
       type: Array,
       default: [],
+      required: true,
+    },
+    refreshToken: {
+      type: String,
       required: true,
     },
   },

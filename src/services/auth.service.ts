@@ -1,9 +1,16 @@
-import { Request } from "express";
-import Shops from "../models/shop.model.ts";
 import bcrypt from "bcrypt";
-import crypto from "node:crypto";
-import tokenKeyService from "./tokenKey.service.ts";
+import { Request } from "express";
 import { createTokenPair } from "../authUtils/authUtils.ts";
+import {
+  BadRequestError,
+  ConflictRequestError,
+  NotFoundRequestError,
+} from "../core/error.response.ts";
+import Shops from "../models/shop.model.ts";
+import { generateKey, pickKeysInObject } from "../utils/index.ts";
+import { findByEmail } from "./shop.service.ts";
+import tokenKeyService from "./tokenKey.service.ts";
+import KeyTokenService from "./tokenKey.service.ts";
 
 const ROlE = {
   SHOP: "SHOP",
@@ -14,62 +21,85 @@ const ROlE = {
 
 class AuthService {
   signUP = async (req: Request) => {
-    try {
-      const { name, email, password } = req.body;
-      const holderShop = await Shops.findOne({
-        email,
-      }).lean();
-      if (holderShop) {
-        return {
-          message: "Email already exists",
-        };
-      }
+    const { name, email, password } = req.body;
+    const holderShop = await Shops.findOne({
+      email,
+    }).lean();
+    if (holderShop) {
+      throw new ConflictRequestError("Email already exists");
+    }
 
-      console.log(name, email, password);
-      const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
-      const newShop = await Shops.create({
-        name,
-        email,
-        password: passwordHash,
-        roles: [ROlE.SHOP],
+    const newShop = await Shops.create({
+      name,
+      email,
+      password: passwordHash,
+      roles: [ROlE.SHOP],
+    }).then((data) => {
+      return data.toObject();
+    });
+
+    if (newShop) {
+      const privateKey = generateKey();
+      const publicKey = generateKey();
+
+      const keysStore = await tokenKeyService.createKeyToken({
+        userId: newShop._id,
+        publicKey,
+        privateKey,
       });
 
-      if (newShop) {
-        const privateKey = crypto.randomBytes(64).toString("hex");
-        const publicKey = crypto.randomBytes(64).toString("hex");
-
-        const keysStore = await tokenKeyService.createKeyToken({
-          userId: newShop._id,
-          publicKey,
-          privateKey,
-        });
-
-        if (!keysStore) {
-          return {
-            message: "keysStore error",
-          };
-        }
-
-        const tokens = await createTokenPair(
-          { userId: newShop._id, email },
-          publicKey as string,
-          privateKey
-        );
-
-        console.log(tokens);
-
-        return {
-          code: 201,
-          data: {
-            shop: newShop,
-            tokens,
-          },
-        };
+      if (!keysStore) {
+        throw new BadRequestError("keysStore error");
       }
-    } catch (error) {
-      return error;
+
+      const tokens = await createTokenPair(
+        { userId: newShop._id, email },
+        publicKey as string,
+        privateKey
+      );
+
+      return {
+        data: pickKeysInObject({
+          object: newShop,
+          keys: ["_id", "name", "email", "roles"],
+        }),
+        tokens,
+      };
     }
+  };
+  signIn = async (req: Request) => {
+    const { email, password } = req.body;
+    const shop = await findByEmail({ email });
+    if (!shop) {
+      throw new NotFoundRequestError("Shop not found");
+    }
+    const compare = await bcrypt.compare(password, shop.password);
+    if (!compare) {
+      throw new BadRequestError("Wrong email or password");
+    }
+    const privateKey = generateKey();
+    const publicKey = generateKey();
+
+    const tokens = await createTokenPair(
+      { userId: shop._id, email },
+      publicKey as string,
+      privateKey
+    );
+    await KeyTokenService.createKeyToken({
+      userId: shop._id,
+      publicKey,
+      privateKey,
+      refreshToken: tokens.refreshToken,
+    });
+    return {
+      data: pickKeysInObject({
+        object: shop,
+        keys: ["_id", "name", "email", "roles"],
+      }),
+      tokens,
+    };
   };
 }
 

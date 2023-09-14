@@ -1,12 +1,5 @@
 import { Schema, model } from "mongoose";
-interface IShop {
-  name: string;
-  email: string;
-  password: string;
-  status: string;
-  verify: boolean;
-  roles: any;
-}
+import { IShop } from "../types/models.ts";
 
 const NAME = {
   DOCUMENT: "Shop",

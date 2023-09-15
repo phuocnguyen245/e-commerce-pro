@@ -20,4 +20,15 @@ interface IShop {
   verify: boolean;
   roles: any;
 }
-export { IKeyToken, IApiKey, IShop };
+
+interface IProduct {
+  product_name: string;
+  product_thumb: string;
+  product_des?: string;
+  product_price: number;
+  product_type: string;
+  product_quantity: number;
+  product_shopId: Types.ObjectId;
+  product_attributes: any;
+}
+export { IKeyToken, IApiKey, IShop, IProduct };

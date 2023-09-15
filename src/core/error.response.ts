@@ -37,7 +37,7 @@ class NotFoundRequestError extends ErrorResponse {
   }
 }
 class ForbiddenRequestError extends ErrorResponse {
-  constructor(message: string, subMessage: string, statusCode?: number) {
+  constructor(message: string, subMessage?: string, statusCode?: number) {
     super(
       message,
       subMessage || response.message.FORBIDDEN,

@@ -1,16 +1,19 @@
 import bcrypt from "bcrypt";
 import { Request } from "express";
-import { createTokenPair } from "../authUtils/authUtils.ts";
+import { verifyToken, createTokenPair } from "../authUtils/authUtils.ts";
 import {
   BadRequestError,
   ConflictRequestError,
+  ForbiddenRequestError,
   NotFoundRequestError,
+  UnauthorizeRequestError,
 } from "../core/error.response.ts";
 import Shops from "../models/shop.model.ts";
 import { generateKey, pickKeysInObject } from "../utils/index.ts";
 import { findByEmail } from "./shop.service.ts";
 import tokenKeyService from "./tokenKey.service.ts";
 import KeyTokenService from "./tokenKey.service.ts";
+import { IKeyToken } from "../types/models.js";
 
 const ROlE = {
   SHOP: "SHOP",
@@ -98,6 +101,52 @@ class AuthService {
         object: shop,
         keys: ["_id", "name", "email", "roles"],
       }),
+      tokens,
+    };
+  };
+  signOut = async (id: string) => {
+    const delKey = await KeyTokenService.removeKeyById(id);
+    return delKey;
+  };
+  handleRefreshToken = async ({
+    refreshToken,
+    keyStore,
+    user,
+  }: {
+    refreshToken: string;
+    keyStore: IKeyToken;
+    user: { userId: string; email: string };
+  }) => {
+    const { userId, email } = user;
+
+    if (keyStore.refreshTokenUsed.includes(refreshToken)) {
+      await KeyTokenService.deleteKeyById(userId);
+      throw new ForbiddenRequestError(
+        "Something went wrong, please login again"
+      );
+    }
+
+    if (keyStore.refreshToken !== refreshToken) {
+      throw new BadRequestError("Invalid refresh token");
+    }
+
+    const shop = await findByEmail({ email });
+    if (!shop) {
+      throw new NotFoundRequestError("Shop not found");
+    }
+    const tokens = await createTokenPair(
+      { userId, email },
+      keyStore.publicKey,
+      keyStore.privateKey
+    );
+
+    await KeyTokenService.updateTokenById(
+      keyStore.refreshToken,
+      tokens.refreshToken
+    );
+
+    return {
+      data: { ...user },
       tokens,
     };
   };

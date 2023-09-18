@@ -1,6 +1,6 @@
 import { Schema, model } from "mongoose";
 import { IProduct } from "../types/models.ts";
-
+import { convertToSlug } from "../utils/helpers/convertToSlug.ts";
 const NAME = {
   DOCUMENT: "Product",
   COLLECTION: "Products",
@@ -16,7 +16,7 @@ const productSchema = new Schema<IProduct>(
       type: String,
       required: true,
     },
-    product_des: {
+    product_desc: {
       type: String,
     },
     product_price: {
@@ -41,12 +41,45 @@ const productSchema = new Schema<IProduct>(
       type: Schema.Types.Mixed,
       required: true,
     },
+    //...
+    product_slug: {
+      type: String,
+      unique: true,
+    },
+    product_arrange: {
+      type: Number,
+      default: 4.5,
+      min: [0, "Rating must be at least 0"],
+      max: [5, "Rating must be at most 5"],
+      set: (v: number) => Math.round(v * 10) / 10,
+    },
+    product_variation: {
+      type: Schema.Types.Mixed,
+      default: [],
+    },
+    isDraft: {
+      type: Boolean,
+      default: true,
+      index: true,
+      // select: false,
+    },
+    isPublished: {
+      type: Boolean,
+      default: false,
+      index: true,
+      // select: false,
+    },
   },
   {
     timestamps: true,
     collection: NAME.COLLECTION,
   }
 );
+
+productSchema.pre<IProduct>("save", function (next) {
+  this.product_slug = convertToSlug(this.product_name);
+  next();
+});
 
 const clothesSchema = new Schema(
   {
@@ -78,6 +111,7 @@ const ElectronicSchema = new Schema(
     color: {
       type: String,
     },
+    shopId: Schema.Types.ObjectId,
   },
   {
     timestamps: true,

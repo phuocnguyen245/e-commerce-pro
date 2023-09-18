@@ -3,7 +3,6 @@ import express, { NextFunction, Request, Response } from "express";
 import { default as helmet } from "helmet";
 import morgan from "morgan";
 import { connectToPrismaDatabase, instanceMongodb } from "./config/database.ts";
-import { checkConnect } from "./utils/helpers/checkConnect.ts";
 import router from "./routes/index.ts";
 const app = express();
 

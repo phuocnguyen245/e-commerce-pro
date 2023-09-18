@@ -79,6 +79,7 @@ export const authentication = asyncHandler(
         throw new UnauthorizeRequestError("Invalid token");
       }
       (req as any).keyStore = keyStore;
+      (req as any).user = decodedUser;
       return next();
     } catch (error) {
       throw error;
